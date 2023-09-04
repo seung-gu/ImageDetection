@@ -35,7 +35,7 @@ unet = UNet(IMG_SIZE=224, transfer_learning_model=download_VGGNet_weights_Toples
 unet.compile_model(unet.model, learning_rate=0.0001, steps_per_epoch=steps_per_epoch)
 unet.train_model(unet.model, train_dataset, val_dataset, epochs=10,
                  steps_per_epoch=steps_per_epoch, validation_steps=validation_steps)
-unet.model.save('./weights/seg_model_tl.h5')
+unet.model.save('./weights/unet_tl/seg_model_tl.h5')
 # unet.model.load_weights('./weights/seg_model.h5')
 predict_seg(unet.model, tf_record, val_dataset, test_round=1)
 calculate_iou_seg(unet.model, tf_record, val_dataset, validation_steps=validation_steps)

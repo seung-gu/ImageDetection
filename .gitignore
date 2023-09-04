@@ -6,3 +6,5 @@
 /weights/mobile_net_v2_tl/local_output5.h5
 /processing/oxford_pet.zip
 /dataset/oxford_pet/
+/weights/unet_tl/seg_model.h5
+/weights/unet_tl/seg_model_tl.h5
