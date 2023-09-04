@@ -75,3 +75,15 @@ def show_bbox(model, tf_record, val_dataset, validation_steps):
         ## image와 bbox 함께 출력
         plt.imshow(val_data[0])
         plt.show()
+
+
+def display_seg(val_dataset, validation_steps):
+    ## train dataset에서 1개의 image와 bbox를 읽어서 확인
+    # 선들은 reshape 때문에 발생
+    for (image, seg) in val_dataset.take(validation_steps):
+        plt.figure(figsize=(11, 5))
+        plt.subplot(1, 2, 1)
+        plt.imshow(image[0])
+        plt.subplot(1, 2, 2)
+        plt.imshow(seg[0, :, :, 0])
+        plt.show()

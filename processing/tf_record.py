@@ -2,6 +2,7 @@ import os
 import re
 import random
 
+import numpy as np
 import tensorflow as tf
 from PIL import Image
 import xml.etree.ElementTree as et
@@ -35,13 +36,13 @@ class TF_Record:
         self.N_CLASS = N_CLASS
 
     def load_trainable_dataset(self, tfr_train_dir, tfr_val_dir, parse_func):
-        # train dataset 만들기
+        # train dataset
         train_dataset = tf.data.TFRecordDataset(tfr_train_dir)
         train_dataset = train_dataset.map(parse_func, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         train_dataset = train_dataset.shuffle(self.N_TRAIN). \
             prefetch(tf.data.experimental.AUTOTUNE).batch(self.N_BATCH).repeat()
 
-        # val dataset 만들기
+        # val dataset
         val_dataset = tf.data.TFRecordDataset(tfr_val_dir)
         val_dataset = val_dataset.map(parse_func, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         val_dataset = val_dataset.batch(self.N_BATCH).repeat()
@@ -61,14 +62,21 @@ class TF_Record:
         image = tf.reshape(image, [self.IMG_SIZE, self.IMG_SIZE, 3])
         image = tf.cast(image, tf.float32) / 255.
 
-        output = tf.stack([tf.cast(parsed_features[cls], typ) for (cls, typ) in self.out_features], -1)
-        print(output.shape)
+        output = []
+        for (cls, typ) in self.out_features:
+            parsed = parsed_features[cls]
+            if cls == 'seg':
+                parsed = tf.io.decode_raw(parsed_features[cls], tf.uint8)
+                parsed = tf.reshape(parsed, [self.IMG_SIZE, self.IMG_SIZE, -1])
+            output.append(tf.cast(parsed, typ))
+        output = tf.stack(output, -1)
+
         if output.shape[-1] == 1:
             output = tf.squeeze(output, -1)
         return image, output
 
     def save_tf_record(self, data_dir, train_dir, val_dir, class2idx, tfr_type='cls'):
-        # tfr_type : 'cls' or 'loc'
+        # tfr_type : 'cls', 'loc' or 'seg'
 
         # create tfrecord directory if not exist
         tfr_dir = os.path.join(data_dir, 'tfrecord')
@@ -77,13 +85,13 @@ class TF_Record:
         tfr_train_path = os.path.join(tfr_dir, tfr_type + '_train.tfr')
         tfr_val_path = os.path.join(tfr_dir, tfr_type + '_val.tfr')
 
-        # create tfrecord file if not exist
-        if not os.path.exists(tfr_train_path) or not os.path.getsize(tfr_train_path):  # if file is empty
-            writer_train = tf.io.TFRecordWriter(tfr_train_path)
-            getattr(self, 'write_tf_record_' + tfr_type)(writer_train, data_dir, train_dir, class2idx)
-        if not os.path.exists(tfr_val_path) or not os.path.getsize(tfr_val_path):
-            writer_val = tf.io.TFRecordWriter(tfr_val_path)
-            getattr(self, 'write_tf_record_' + tfr_type)(writer_val, data_dir, val_dir, class2idx)
+        # create tfrecord file
+        # train
+        writer_train = tf.io.TFRecordWriter(tfr_train_path)
+        getattr(self, 'write_tf_record_' + tfr_type)(writer_train, data_dir, train_dir, class2idx)
+        # validation
+        writer_val = tf.io.TFRecordWriter(tfr_val_path)
+        getattr(self, 'write_tf_record_' + tfr_type)(writer_val, data_dir, val_dir, class2idx)
 
         return tfr_train_path, tfr_val_path
 
@@ -96,7 +104,7 @@ class TF_Record:
             image = image.resize((self.IMG_SIZE, self.IMG_SIZE))
             bimage = image.tobytes()
 
-            file_name = os.path.splitext(file)[0]  # Bangal_101
+            file_name = os.path.splitext(file)[0]
             class_name = re.sub('_\d+', '', file_name)
             class_num = class2idx[class_name]
 
@@ -163,6 +171,44 @@ class TF_Record:
 
         writer.close()
 
+    def write_tf_record_seg(self, writer, data_dir, image_dir, class2idx):
+        files = os.listdir(image_dir)
+        for file in files:
+            train_path = os.path.join(image_dir, file)
+            image = Image.open(train_path)
+            image = image.resize((self.IMG_SIZE, self.IMG_SIZE))
+            bimage = image.tobytes()
+
+            file_name = os.path.splitext(file)[0]  # Bangal_101
+            class_name = re.sub('_\d+', '', file_name)
+            class_num = class2idx[class_name]
+
+            if file_name[0].islower():  # dog
+                bi_cls_num = 0
+            else:  # cat
+                bi_cls_num = 1
+
+            seg_name = file_name + '.png'
+            seg_dir = os.path.join(data_dir, 'annotations', 'trimaps')
+            seg_path = os.path.join(seg_dir, seg_name)
+            seg = Image.open(seg_path)
+            seg = seg.resize((self.IMG_SIZE, self.IMG_SIZE))
+            seg = np.array(seg)
+            seg[seg > 2] = 1
+            seg[seg == 2] = 0
+            bseg = seg.tobytes()
+
+            example = tf.train.Example(features=tf.train.Features(feature={
+                'image': _bytes_feature(bimage),
+                'cls_num': _int64_feature(class_num),
+                'bi_cls_num': _int64_feature(class_num),
+                'seg': _bytes_feature(bseg)
+            }))
+            writer.write(example.SerializeToString())
+
+        writer.close()
+        print(len(files))
+
     def load_features(self, tfr_type='cls'):
         if tfr_type == 'cls':
             return {'image': tf.io.FixedLenFeature([], tf.string),
@@ -177,4 +223,10 @@ class TF_Record:
                     'y': tf.io.FixedLenFeature([], tf.float32),
                     'w': tf.io.FixedLenFeature([], tf.float32),
                     'h': tf.io.FixedLenFeature([], tf.float32)
+                    }
+        elif tfr_type == 'seg':
+            return {'image': tf.io.FixedLenFeature([], tf.string),
+                    'cls_num': tf.io.FixedLenFeature([], tf.int64),
+                    'bi_cls_num': tf.io.FixedLenFeature([], tf.int64),
+                    'seg': tf.io.FixedLenFeature([], tf.string)
                     }

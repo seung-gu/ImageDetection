@@ -85,8 +85,8 @@ class OxfordDataset:
             train_dir = os.path.join(self.dataset_dir, 'train_xml')
             val_dir = os.path.join(self.dataset_dir, 'val_xml')
         elif dir.endswith('trimaps'):
-            train_dir = os.path.join(self.dataset_dir, 'train_seg')
-            val_dir = os.path.join(self.dataset_dir, 'val_seg')
+            train_dir = os.path.join(self.dataset_dir, 'train')
+            val_dir = os.path.join(self.dataset_dir, 'val')
         else:
             raise ValueError('Invalid directory path.')
 
