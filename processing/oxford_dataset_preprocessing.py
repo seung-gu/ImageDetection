@@ -78,15 +78,12 @@ class OxfordDataset:
         return dataset_dir, image_dir, bbox_dir, seg_dir
 
     def load_train_test_files(self, dir):
-        if dir.endswith('images'):
+        if dir.endswith('images') or dir.endswith('trimaps'):
             train_dir = os.path.join(self.dataset_dir, 'train')
             val_dir = os.path.join(self.dataset_dir, 'val')
         elif dir.endswith('xmls'):
             train_dir = os.path.join(self.dataset_dir, 'train_xml')
             val_dir = os.path.join(self.dataset_dir, 'val_xml')
-        elif dir.endswith('trimaps'):
-            train_dir = os.path.join(self.dataset_dir, 'train')
-            val_dir = os.path.join(self.dataset_dir, 'val')
         else:
             raise ValueError('Invalid directory path.')
 

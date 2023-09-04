@@ -75,7 +75,7 @@ class TF_Record:
             output = tf.squeeze(output, -1)
         return image, output
 
-    def save_tf_record(self, data_dir, train_dir, val_dir, class2idx, tfr_type='cls'):
+    def save_tf_record(self, data_dir, train_dir, val_dir, class2idx, tfr_type='cls', update=True):
         # tfr_type : 'cls', 'loc' or 'seg'
 
         # create tfrecord directory if not exist
@@ -86,12 +86,15 @@ class TF_Record:
         tfr_val_path = os.path.join(tfr_dir, tfr_type + '_val.tfr')
 
         # create tfrecord file
-        # train
-        writer_train = tf.io.TFRecordWriter(tfr_train_path)
-        getattr(self, 'write_tf_record_' + tfr_type)(writer_train, data_dir, train_dir, class2idx)
-        # validation
-        writer_val = tf.io.TFRecordWriter(tfr_val_path)
-        getattr(self, 'write_tf_record_' + tfr_type)(writer_val, data_dir, val_dir, class2idx)
+        if update is True or not os.path.isfile(tfr_train_path):
+            print('Train TFRecord already exists')
+            writer_train = tf.io.TFRecordWriter(tfr_train_path)
+            getattr(self, 'write_tf_record_' + tfr_type)(writer_train, data_dir, train_dir, class2idx)
+
+        if update is True or not os.path.isfile(tfr_val_path):
+            print('Validation TFRecord already exists')
+            writer_val = tf.io.TFRecordWriter(tfr_val_path)
+            getattr(self, 'write_tf_record_' + tfr_type)(writer_val, data_dir, val_dir, class2idx)
 
         return tfr_train_path, tfr_val_path
 

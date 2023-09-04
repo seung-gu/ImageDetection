@@ -37,7 +37,7 @@ def show_cam(image_value, features, weights, results, label):
     plt.show()
 
 
-def show_bbox(model, tf_record, val_dataset, validation_steps):
+def predict_bbox(model, tf_record, val_dataset, validation_steps):
     for val_data, val_gt in val_dataset.take(validation_steps):
         ## 정답 box 그리기
         x = val_gt[:, -4]
@@ -77,13 +77,22 @@ def show_bbox(model, tf_record, val_dataset, validation_steps):
         plt.show()
 
 
-def display_seg(val_dataset, validation_steps):
-    ## train dataset에서 1개의 image와 bbox를 읽어서 확인
-    # 선들은 reshape 때문에 발생
-    for (image, seg) in val_dataset.take(validation_steps):
-        plt.figure(figsize=(11, 5))
-        plt.subplot(1, 2, 1)
+def predict_seg(model, tf_record, val_dataset, test_round=1):
+    ## num_imgs만큼 validation dataset에서 읽어서 정답과 예측값 확인
+    for idx, (image, seg) in enumerate(val_dataset.take(test_round)):
+        plt.figure(figsize=(17, 6 * test_round))
+        plt.subplot(test_round, 3, idx * 3 + 1)
         plt.imshow(image[0])
-        plt.subplot(1, 2, 2)
-        plt.imshow(seg[0, :, :, 0])
+        plt.subplot(test_round, 3, idx * 3 + 2)
+        plt.imshow(seg[0, :, :, 0], vmin=0, vmax=1)
+
+        plt.subplot(test_round, 3, idx * 3 + 3)
+        ## validation data에 대한 예측값 생성
+        prediction = model.predict(image)
+        pred = np.zeros_like(prediction)
+        ## 0.5이상은 1로 나머지는 0으로 변환
+        thr = 0.5
+        pred[prediction >= thr] = 1
+        pred[prediction < thr] = 0
+        plt.imshow(pred[0, :, :, 1])
         plt.show()

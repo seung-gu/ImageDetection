@@ -3,8 +3,8 @@ import numpy as np
 import tensorflow as tf
 from processing.oxford_dataset_preprocessing import OxfordDataset
 from processing.tf_record import TF_Record
-from utils.display import show_bbox
-from utils.metrics import calculate_iou
+from utils.display import predict_bbox
+from utils.metrics import calculate_iou_bbox
 
 cur_path = os.getcwd()
 
@@ -31,5 +31,5 @@ steps_per_epoch = tf_record.N_TRAIN / tf_record.N_BATCH
 validation_steps = int(np.ceil(tf_record.N_VAL / tf_record.N_BATCH))
 
 # test
-show_bbox(mobile_net_model, tf_record, val_dataset=val_dataset, validation_steps=validation_steps)
-calculate_iou(mobile_net_model, tf_record, val_dataset=val_dataset, validation_steps=validation_steps)
+predict_bbox(mobile_net_model, tf_record, val_dataset=val_dataset, validation_steps=validation_steps)
+calculate_iou_bbox(mobile_net_model, tf_record, val_dataset=val_dataset, validation_steps=validation_steps)
